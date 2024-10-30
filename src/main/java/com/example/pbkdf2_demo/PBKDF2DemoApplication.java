@@ -14,10 +14,10 @@ public class PBKDF2DemoApplication {
     static Logger logger = LoggerFactory.getLogger(PBKDF2DemoApplication.class);
     private static final String CRYPTOGRAPHIC_ALGORITHM = "PBKDF2WithHmacSHA512";
     private static final String RANDOM_NUMBER_GENERATOR_ALGORITHM = "SHA1PRNG";
-    private static String SPLIT_CHAR = ":";
-    private static int RADIX = 16;
-    private static int KEY_LENGTH = 64;
-    private static int KEY_LENGTH_MULTIPLIER = 8;
+    private static final String SPLIT_CHAR = ":";
+    private static final int RADIX = 16;
+    private static final int KEY_LENGTH = 64;
+    private static final int KEY_LENGTH_MULTIPLIER = 8;
 
     public static void main(String[] args) throws NoSuchAlgorithmException, InvalidKeySpecException {
         String originalPassword = "password";
