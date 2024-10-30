@@ -2,7 +2,6 @@ package com.example.password4j_demo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -11,73 +10,70 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 
-@SpringBootApplication
-public class Password4jDemoApplication {
-    static Logger logger = LoggerFactory.getLogger(Password4jDemoApplication.class);
+public class PBKDF2DemoApplication {
+    static Logger logger = LoggerFactory.getLogger(PBKDF2DemoApplication.class);
+    private static final String CRYPTOGRAPHIC_ALGORITHM = "PBKDF2WithHmacSHA512";
+    private static final String RANDOM_NUMBER_GENERATOR_ALGORITHM = "SHA1PRNG";
+    private static String SPLIT_CHAR = ":";
+    private static int RADIX = 16;
+    private static int KEY_LENGTH = 64;
+    private static int KEY_LENGTH_MULTIPLIER = 8;
 
     public static void main(String[] args) throws NoSuchAlgorithmException, InvalidKeySpecException {
         String originalPassword = "password";
-        String generatedSecuredPasswordHash =
-                generateStrongPasswordHash(originalPassword);
-        logger.info(generatedSecuredPasswordHash);
+        String securedPassword = generateSecuredPassword(originalPassword);
+        logger.info(securedPassword);
 
-        boolean matched =
-                validatePassword("password", generatedSecuredPasswordHash);
-        logger.info(String.valueOf(matched));
+        boolean matched = validatePassword(originalPassword, securedPassword);
+        logger.info("Should be true: {}", String.valueOf(matched));
 
-        matched = validatePassword("password1", generatedSecuredPasswordHash);
-        logger.info(String.valueOf(matched));
+        matched = validatePassword("wr0ngPassw0rd", securedPassword);
+        logger.info("Should be false: {}", String.valueOf(matched));
     }
 
-    private static boolean validatePassword(String originalPassword,
-                                            String storedPassword)
+    // The secured password can be obtained from the DB. IF we save it during generateStrongPasswordHash()
+    private static boolean validatePassword(String evaluatedPassword, String securedPassword)
             throws NoSuchAlgorithmException, InvalidKeySpecException {
-        String[] parts = storedPassword.split(":");
-        int iterations = Integer.parseInt(parts[0]);
-        byte[] salt = fromHex(parts[1]);
-        byte[] hash = fromHex(parts[2]);
+        String[] securedPasswordParts = securedPassword.split(SPLIT_CHAR);
+        int iterations = Integer.parseInt(securedPasswordParts[0]);
+        byte[] securedPasswordSalt = fromHex(securedPasswordParts[1]);
+        byte[] securedPasswordHash = fromHex(securedPasswordParts[2]);
 
-        PBEKeySpec spec = new PBEKeySpec(originalPassword.toCharArray(), salt,
-                iterations, hash.length * 8);
-
-        SecretKeyFactory skf =
-                SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512");
-
+        PBEKeySpec spec = new PBEKeySpec(evaluatedPassword.toCharArray(), securedPasswordSalt, iterations,
+                securedPasswordHash.length * KEY_LENGTH_MULTIPLIER);
+        SecretKeyFactory skf = SecretKeyFactory.getInstance(CRYPTOGRAPHIC_ALGORITHM);
         byte[] testHash = skf.generateSecret(spec).getEncoded();
-
-        int diff = hash.length ^ testHash.length;
-
-        for (int i = 0; i < hash.length && i < testHash.length; i++) {
-            diff |= hash[i] ^ testHash[i];
+        int diff = securedPasswordHash.length ^ testHash.length;
+        for (int i = 0; i < securedPasswordHash.length && i < testHash.length; i++) {
+            diff |= securedPasswordHash[i] ^ testHash[i];
         }
-
         return diff == 0;
     }
 
-    private static String generateStrongPasswordHash(String password)
+    private static String generateSecuredPassword(String password)
             throws NoSuchAlgorithmException, InvalidKeySpecException {
         int iterations = 1000;
         char[] chars = password.toCharArray();
-        byte[] salt = getSalt().getBytes();
+        byte[] salt = getSalt();
 
-        PBEKeySpec spec = new PBEKeySpec(chars, salt, iterations, 64 * 8);
-        SecretKeyFactory skf =
-                SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+        PBEKeySpec spec = new PBEKeySpec(chars, salt, iterations, KEY_LENGTH * KEY_LENGTH_MULTIPLIER);
+        SecretKeyFactory skf = SecretKeyFactory.getInstance(CRYPTOGRAPHIC_ALGORITHM);
         byte[] hash = skf.generateSecret(spec).getEncoded();
-        return iterations + ":" + toHex(salt) + ":" + toHex(hash);
 
+        //It can be stored in a DB
+        return iterations + SPLIT_CHAR + toHex(salt) + SPLIT_CHAR + toHex(hash);
     }
 
-    private static String getSalt() throws NoSuchAlgorithmException {
-        SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
-        byte[] salt = new byte[16];
+    private static byte[] getSalt() throws NoSuchAlgorithmException {
+        SecureRandom sr = SecureRandom.getInstance(RANDOM_NUMBER_GENERATOR_ALGORITHM);
+        byte[] salt = new byte[RADIX];
         sr.nextBytes(salt);
-        return salt.toString();
+        return salt;
     }
 
-    private static String toHex(byte[] array) throws NoSuchAlgorithmException {
+    private static String toHex(byte[] array) {
         BigInteger bi = new BigInteger(1, array);
-        String hex = bi.toString(16);
+        String hex = bi.toString(RADIX);
         int paddingLength = (array.length * 2) - hex.length();
         if (paddingLength > 0) {
             return String.format("%0" + paddingLength + "d", 0) + hex;
@@ -86,11 +82,10 @@ public class Password4jDemoApplication {
         }
     }
 
-    private static byte[] fromHex(String hex) throws NoSuchAlgorithmException {
+    private static byte[] fromHex(String hex) {
         byte[] bytes = new byte[hex.length() / 2];
         for (int i = 0; i < bytes.length; i++) {
-            bytes[i] = (byte) Integer.parseInt(hex.substring(2 * i, 2 * i + 2),
-                    16);
+            bytes[i] = (byte) Integer.parseInt(hex.substring(2 * i, 2 * i + 2), RADIX);
         }
         return bytes;
     }
