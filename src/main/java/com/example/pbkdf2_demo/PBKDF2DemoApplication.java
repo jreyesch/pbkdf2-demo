@@ -1,4 +1,4 @@
-package com.example.password4j_demo;
+package com.example.pbkdf2_demo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
