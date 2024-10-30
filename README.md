@@ -1,2 +1,2 @@
 # pbkdf2-demo
-Demo project for Password4j
+Demo project for PBKDF2
